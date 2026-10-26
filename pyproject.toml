@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "efsc"
+version = "0.1.0"
+authors = [
+  { name="Hector Rodriguez-Deniz", email="hector.rodriguez.deniz@gmail.com" },
+]
+description = "Exponential Family Synthetic Controls."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = [
+    "causal inference",
+    "exponential families",
+    "matrix completion",
+    "synthetic controls",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
+dependencies = [
+    "numpy>=1.23.5",
+    "pandas>=1.5.3",
+    "torch>=2.0.1",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.4,<9",
+    "scipy>=1.9.3",
+]
+examples = [
+    "matplotlib>=3.7",
+]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[project.urls]
+"Homepage" = "https://github.com/blei-lab/efsc"
+"Repository" = "https://github.com/blei-lab/efsc"
+"Issues" = "https://github.com/blei-lab/efsc/issues"
+"Documentation" = "https://github.com/blei-lab/efsc/blob/main/docs/API_REFERENCE.md"
+"Paper" = "https://arxiv.org/abs/2609.23970"
+"Paper reproduction" = "https://github.com/blei-lab/efsc-paper-reproduction"

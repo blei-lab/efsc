@@ -1,0 +1,6 @@
+# Exact dependency floor tested by the minimum-dependencies CI job.
+numpy==1.23.5
+pandas==1.5.3
+scipy==1.9.3
+torch==2.0.1
+pytest==7.4.0

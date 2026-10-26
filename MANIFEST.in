@@ -1,0 +1,3 @@
+recursive-include examples *.csv *.py
+recursive-include examples *.md
+recursive-include docs *.md

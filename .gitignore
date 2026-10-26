@@ -1,0 +1,51 @@
+# Local environments and Python build products
+myenv/
+.venv/
+venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+dist/
+build/
+*.egg-info/
+
+# Test and analysis outputs
+tests/results_intermediate/
+tests/*.png
+tests/*.ipynb
+outputs/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Credentials and machine-local configuration
+.env
+.env.*
+.pypirc
+.netrc
+credentials*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Restricted or bulky research-data formats
+data/
+*.dat
+*.dta
+*.xls
+*.xlsx
+*.sav
+*.sas7bdat
+*.parquet
+*.feather
+*.rds
+
+# Common editor and operating-system files
+.DS_Store
+.Rhistory
+.idea/
+.vscode/
+gallery/

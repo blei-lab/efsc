@@ -1,0 +1,231 @@
+name: Python package tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install --editable ".[test]"
+
+      - name: Run test suite
+        run: python -W error -m pytest -p no:cacheprovider
+
+  minimum-dependencies:
+    name: Minimum dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install minimum dependency stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "torch==2.0.1" --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install --requirement requirements/minimum.txt
+          python -m pip install build twine
+
+      - name: Build and validate distributions
+        run: |
+          python -m build --outdir "${RUNNER_TEMP}/efsc-dist"
+          python -m twine check "${RUNNER_TEMP}"/efsc-dist/*
+
+      - name: Check distribution contents
+        run: |
+          python - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import tarfile
+          import zipfile
+
+          dist = Path("${{ runner.temp }}") / "efsc-dist"
+          wheel = next(dist.glob("*.whl"))
+          sdist = next(dist.glob("*.tar.gz"))
+          expected_modules = {
+              "__init__.py",
+              "_families.py",
+              "_validation.py",
+              "causal.py",
+              "causal_results.py",
+              "divergences.py",
+              "estimator.py",
+              "fitting.py",
+              "log_joints.py",
+              "panel.py",
+              "posterior.py",
+              "predictive.py",
+              "preprocessing.py",
+              "results.py",
+              "vi.py",
+          }
+          excluded_directories = {
+              "archive",
+              "data",
+              "experiments",
+              "figures",
+              "formalization",
+              "manuscript",
+              "notebooks",
+          }
+
+          with zipfile.ZipFile(wheel) as archive:
+              wheel_names = archive.namelist()
+          packaged_modules = {
+              PurePosixPath(name).name
+              for name in wheel_names
+              if name.startswith("efsc/") and name.endswith(".py")
+          }
+          assert packaged_modules == expected_modules
+          assert not any(
+              excluded_directories.intersection(PurePosixPath(name).parts)
+              for name in wheel_names
+          )
+
+          with tarfile.open(sdist, "r:gz") as archive:
+              sdist_names = archive.getnames()
+          expected_examples = {
+              "README.md",
+              "IMPUTATION.md",
+              "CAUSAL.md",
+              "data/gaussian_panel_toy.csv",
+              "gaussian_imputation_quickstart.py",
+              "data/gaussian_causal_toy.csv",
+              "data/gaussian_causal_metadata_toy.csv",
+              "gaussian_causal_quickstart.py",
+              "poisson_synthetic_control.py",
+              "imputation/_imputation_utils.py",
+              "data/gaussian_known_sigma_toy.csv",
+              "imputation/gaussian_known_sigma_imputation.py",
+              "data/poisson_toy.csv",
+              "imputation/poisson_imputation.py",
+              "data/bernoulli_toy.csv",
+              "imputation/bernoulli_imputation.py",
+              "data/exponential_toy.csv",
+              "imputation/exponential_imputation.py",
+              "data/laplace_known_mu_toy.csv",
+              "imputation/laplace_known_mu_imputation.py",
+              "data/chi_square_toy.csv",
+              "imputation/chi_square_imputation.py",
+              "data/multinomial_toy.csv",
+              "imputation/multinomial_imputation.py",
+              "causal/_causal_utils.py",
+              "causal/gaussian_causal.py",
+              "causal/gaussian_known_sigma_causal.py",
+              "causal/bernoulli_causal.py",
+              "causal/poisson_causal.py",
+              "causal/exponential_causal.py",
+              "causal/laplace_known_mu_causal.py",
+              "causal/chi_square_causal.py",
+              "causal/multinomial_causal.py",
+          }
+          for relative_path in expected_examples:
+              assert any(
+                  name.endswith(f"/examples/{relative_path}")
+                  for name in sdist_names
+              ), relative_path
+          expected_docs = {
+              "README.md",
+              "API_REFERENCE.md",
+              "CAUSAL_ANALYSIS.md",
+              "INFERENCE.md",
+              "INPUT_DATA.md",
+              "REPRODUCIBILITY.md",
+              "RESULTS.md",
+              "SUPPORTED_DISTRIBUTIONS.md",
+          }
+          for relative_path in expected_docs:
+              assert any(
+                  name.endswith(f"/docs/{relative_path}")
+                  for name in sdist_names
+              ), relative_path
+          assert not any("/docs/assets/" in name for name in sdist_names)
+          assert not any(
+              len(PurePosixPath(name).parts) > 1
+              and PurePosixPath(name).parts[1] in excluded_directories
+              for name in sdist_names
+          )
+          PY
+
+      - name: Install built wheel
+        run: >-
+          python -m pip install --no-deps --force-reinstall
+          "${RUNNER_TEMP}"/efsc-dist/*.whl
+
+      - name: Check installed wheel
+        working-directory: /tmp
+        run: |
+          python - <<'PY'
+          from importlib.metadata import version
+          from importlib.util import find_spec
+          from pathlib import Path
+
+          import efsc
+          import torch
+
+          assert efsc.__version__ == version("efsc")
+          assert "site-packages" in Path(efsc.__file__).parts
+          assert not torch.cuda.is_available(), "CPU-only CI unexpectedly exposes CUDA"
+          assert set(efsc.__all__) == {
+              "CausalResult",
+              "EFSC",
+              "EFSCResult",
+              "InferenceConfig",
+              "__version__",
+          }
+          for module in (
+              "factorization",
+              "families",
+              "plotting",
+              "reproduction",
+              "simulation",
+              "utils",
+          ):
+              assert find_spec(f"efsc.{module}") is None
+          PY
+
+      - name: Run installed-package examples
+        working-directory: /tmp
+        run: |
+          python "${GITHUB_WORKSPACE}/examples/gaussian_imputation_quickstart.py"
+          for example in "${GITHUB_WORKSPACE}"/examples/imputation/*_imputation.py; do
+            python "${example}"
+          done
+          python "${GITHUB_WORKSPACE}/examples/gaussian_causal_quickstart.py"
+          for example in "${GITHUB_WORKSPACE}"/examples/causal/*_causal.py; do
+            python "${example}" --epochs 20
+          done
+          python "${GITHUB_WORKSPACE}/examples/poisson_synthetic_control.py" --epochs 20
+
+      - name: Run test suite
+        run: python -W error -m pytest -p no:cacheprovider
